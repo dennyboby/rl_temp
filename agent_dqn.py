@@ -62,7 +62,7 @@ class Agent_DQN(Agent):
         self.scores = deque(maxlen=100)
         self.rewards = deque(maxlen=self.reward_save_frequency)
         
-        self.device = torch.device('cpu')
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
         # Initialise policy and target networks, set target network to eval mode
         self.online_net = DQN(self.num_frames, self.env.action_space.n, filename='test')
