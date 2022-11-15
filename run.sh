@@ -7,16 +7,14 @@
 #SBATCH -C A100
 #SBATCH -p short
 #SBATCH -t 20:00:00
-#SBATCH -o ~/dboby/rl_temp/slurm_outputs/rljob_%j.out
-#SBATCH --error ~/dboby/rl_temp/slurm_outputs/rljob_error_%j.out
+#SBATCH --output=slurm_outputs/rljob_%j.out
+#SBATCH --error=slurm_outputs/rljob_error_%j.out
 #SBATCH -J den_rl
 
 echo "RL Job running on $(hostname)"
 
 echo "Loading Python Virtual Environment"
 
-source ~/dboby/rl_env/bin/activate
-
 echo "Running Python Code"
 
-python3 ~/dboby/rl_temp/main.py --train_dqn
+python3 main.py --train_dqn
