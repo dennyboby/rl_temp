@@ -80,3 +80,54 @@ class DQN(nn.Module):
     # Loads a model
     def load_model(self):
         self.load_state_dict(torch.load('./models/' + self.filename + '.pth'))
+
+class DuelingDQN(nn.Module):
+    def __init__(self, in_channels=4, num_actions=4, filename='test'):
+        super(DuelingDQN, self).__init__()
+
+        self.input_shape = [4,84,84]
+        self.channels = in_channels
+        self.conv = nn.Sequential(   
+        nn.Conv2d(self.channels, 32, kernel_size=8, stride=4),
+        nn.ReLU(),
+        nn.Conv2d(32, 64, kernel_size=4, stride=2),
+        nn.ReLU(),
+        nn.Conv2d(64, 64, kernel_size=3, stride=1),
+        nn.ReLU(),
+        nn.Flatten()
+        )
+        
+        conv_out_size = self._get_conv_out(self.input_shape)
+
+        self.advantage = nn.Sequential(
+            nn.Linear(conv_out_size, 512),
+            nn.ReLU(),
+            nn.Linear(512, num_actions),
+        )
+        
+        self.value = nn.Sequential(
+            nn.Linear(conv_out_size, 512),
+            nn.ReLU(),
+            nn.Linear(512, 1),
+        )
+        # Save filename for saving model
+        self.filename = filename
+        
+    def _get_conv_out(self, shape):
+        o = self.conv(torch.zeros(1, *shape))
+        return int(np.prod(o.size()))
+
+    def forward(self, x):
+        x = x/255
+        x = self.conv(x)
+        advantage = self.advantage(x)
+        value     = self.value(x)
+        return value + advantage  - advantage.mean()
+    
+    # Save a model
+    def save_model(self):
+        torch.save(self.state_dict(), './models/' + self.filename + '.pth')
+
+    # Loads a model
+    def load_model(self):
+        self.load_state_dict(torch.load('./models/' + self.filename + '.pth'))

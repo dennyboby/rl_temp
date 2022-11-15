@@ -12,7 +12,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from agent import Agent
-from dqn_model import DQN
+from dqn_model import DQN, DuelingDQN
 import csv
 """
 you can import any package and define any extra function as you need
@@ -41,23 +41,26 @@ class Agent_DQN(Agent):
         # YOUR IMPLEMENTATION HERE #
         self.epsilon_start = 1.0
         self.epsilon_end = 0.05
-        self.epsilon_decay = 1e5
+        self.epsilon_decay = 1e6
         self.epsilon = self.epsilon_start
 
         self.gamma = 0.99
         self.batch_size = 32
         self.buffer_size = 10000
-        self.learning_rate = 1.5e-4
+        self.learning_rate = 0.001
         self.num_frames = 4
         self.steps = 0
-        self.target_update_frequency = 5000
+        self.target_update_frequency = 2500
         self.start_learning = 5000
         self.model_save_frequency = 100
         self.load_model = True
-        self.clip = False
+        self.clip = True
         self.reward_save_frequency = 30
-
-        os.remove("rewards.csv")
+        self.csv_file_name = 'rewards_DDQN.csv'
+        try:
+            os.remove(self.csv_file_name)
+        except FileNotFoundError:
+            pass
         self.buffer_replay = deque(maxlen=self.buffer_size)
         self.scores = deque(maxlen=100)
         self.rewards = deque(maxlen=self.reward_save_frequency)
@@ -65,8 +68,10 @@ class Agent_DQN(Agent):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
         # Initialise policy and target networks, set target network to eval mode
-        self.online_net = DQN(self.num_frames, self.env.action_space.n, filename='test')
-        self.target_net = DQN(self.num_frames, self.env.action_space.n, filename='test_target')
+        # self.online_net = DQN(self.num_frames, self.env.action_space.n, filename='test_DQN')
+        # self.target_net = DQN(self.num_frames, self.env.action_space.n, filename='test_target')
+        self.online_net = DuelingDQN(self.num_frames, self.env.action_space.n, filename='test_DDQN')
+        self.target_net = DuelingDQN(self.num_frames, self.env.action_space.n, filename='test_target')
         self.online_net = self.online_net.to(device=self.device)
         self.target_net = self.target_net.to(device=self.device)
         self.target_net.eval()
@@ -87,8 +92,8 @@ class Agent_DQN(Agent):
 
         # Set optimizer & loss function
         self.optim = optim.Adam(self.online_net.parameters(), lr=self.learning_rate)
-        self.loss = torch.nn.SmoothL1Loss()
-        # self.loss = torch.nn.MSELoss()
+        # self.loss = torch.nn.SmoothL1Loss()
+        self.loss = torch.nn.MSELoss()
 
     # Updates the target net to have same weights as policy net
     def replace_target_net(self, steps):
@@ -215,7 +220,7 @@ class Agent_DQN(Agent):
         max_score = 0
         i_episode = 0
 
-        while mean_score < 50:
+        while mean_score < 60:
             # Initialize the environment and state
             current_state = self.env.reset()
             done = False
@@ -250,7 +255,7 @@ class Agent_DQN(Agent):
             if len(self.buffer_replay) > self.start_learning:
                 print('Episode: ', i_episode, ' Score:', episode_score, ' Avg Score:',round(mean_score,4),' Epsilon: ', round(self.epsilon,4), ' Loss:', round(loss,4), ' Max Score:', max_score)
                 if i_episode % 30 == 0:
-                    with open('rewards.csv', mode='a') as dataFile:
+                    with open(self.csv_file_name, mode='a') as dataFile:
                         rewardwriter = csv.writer(dataFile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
                         rewardwriter.writerow([np.mean(self.rewards)])
             else:
